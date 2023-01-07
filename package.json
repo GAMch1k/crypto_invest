@@ -1,0 +1,26 @@
+{
+  "name": "crypto_invest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GAMch1k/crypto_invest.git"
+  },
+  "author": "GAMch1k",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GAMch1k/crypto_invest/issues"
+  },
+  "homepage": "https://github.com/GAMch1k/crypto_invest#readme",
+  "dependencies": {
+    "node-telegram-bot-api": "^0.61.0",
+    "nodemon": "^2.0.20",
+    "sqlite3": "^5.1.4"
+  }
+}
