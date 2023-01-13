@@ -18,7 +18,7 @@ const bot_user_id = 'cryptoinvestfreedombot'
 const freedom_link = 'https://freedom24.com/authentication/signup/?__lang__=ru&ref=mc_gc_general_f24_ru_17066694396&utm_campaign=mc_gc_general_f24_ru_17066694396_135610020469&utm_source=google&utm_medium=search&utm_term=m_freedom24&utm_content=135610020469_598492474497&gclid=Cj0KCQiA5NSdBhDfARIsALzs2EBmHEj9xFozw0IAkP9kwgxZ6PO3CnegYB38NqtmQK2paa5Lk-ktbMUaAqLiEALw_wcB';
 const freedom_rates = 'https://ffin.ua/ru/reviews';
 
-const admin_id = 532666364;
+const admin_id = 5161613140;
 let orders = {};
 
 function new_user(chatId, referal = 0) {
