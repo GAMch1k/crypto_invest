@@ -7,6 +7,7 @@ db.serialize(() => {
     db.run("CREATE TABLE IF NOT EXISTS users (user_id INTEGER, balance REAL, admin INTEGER, position TEXT, referal INTEGER, banned INTEGER)");
     db.run("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER, approved INTEGER)");
     db.run("CREATE TABLE IF NOT EXISTS contracts (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER, days INTEGER, length INTEGER, profit INTEGER)");
+    db.run("CREATE TABLE IF NOT EXISTS withdraw (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER, net TEXT)");
 });
 
 
@@ -18,7 +19,7 @@ const bot_user_id = 'cryptoinvestfreedombot'
 const freedom_link = 'https://freedom24.com/authentication/signup/?__lang__=ru&ref=mc_gc_general_f24_ru_17066694396&utm_campaign=mc_gc_general_f24_ru_17066694396_135610020469&utm_source=google&utm_medium=search&utm_term=m_freedom24&utm_content=135610020469_598492474497&gclid=Cj0KCQiA5NSdBhDfARIsALzs2EBmHEj9xFozw0IAkP9kwgxZ6PO3CnegYB38NqtmQK2paa5Lk-ktbMUaAqLiEALw_wcB';
 const freedom_rates = 'https://ffin.ua/ru/reviews';
 
-const admin_id = 5161613140;
+const admin_id = 5161613140; //5161613140
 let orders = {};
 
 function new_user(chatId, referal = 0) {
@@ -88,6 +89,12 @@ function new_order(chatId, amount) {
     stmt.finalize();
 }
 
+
+function new_withdraw(chatId, amount, net) {
+    let stmt = db.prepare("INSERT INTO withdraw (user_id, amount, net) VALUES (?, ?, ?)");
+    stmt.run(chatId, amount, net);
+    stmt.finalize();
+}
 
 function new_contract(chatId, amount, length, profit, days,) {
     let stmt = db.prepare("INSERT INTO contracts (user_id, amount, days, length, profit) VALUES (?, ?, ?, ?, ?)");
@@ -267,6 +274,24 @@ function generate_inlines_accept(order_id) {
             [{
                 text: "Отклонить",
                 callback_data: "reject_" + order_id,
+              }]
+            ]
+        }
+    };
+}
+
+
+function generate_inlines_withdraw(order_id) {
+    return {
+        reply_markup: {
+          inline_keyboard: [
+            [{
+                text: "Принять",
+                callback_data: "w_accept_" + order_id,
+              }],
+            [{
+                text: "Отклонить",
+                callback_data: "w_reject_" + order_id,
               }]
             ]
         }
@@ -711,7 +736,13 @@ bot.on('message', (msg) => {
                     orders[username]['address'] = text;
                     let name = msg.from.first_name + ' ' + msg.from.last_name;
                     name = name.replace(' undefined', '');
-                    bot.sendMessage(admin_id, `Новый заказ в ожидании\n@${username} (${name})\n${orders[username]['amount']}\n${orders[username]['net']}\n${text}`);
+                    new_withdraw(chatId, orders[username]['amount'], orders[username]['net']);
+                    db.serialize(() => {
+                        db.all('SELECT * FROM withdraw WHERE user_id = ?', [chatId], (err, rows) => {
+                            if (err) {reject(err);}
+                            bot.sendMessage(admin_id, `Новый заказ в ожидании\n@${username} (${name})\n${orders[username]['amount']}\n${orders[username]['net']}\n${text}`, generate_inlines_withdraw(rows.pop()['id']));
+                        });
+                    });
                     bot.sendMessage(chatId, 'Заказ отправлен администратору бота, ожидайте платежа', main_menu_keyboard);
                     set_stage(chatId, "main_menu");
                 }
@@ -773,6 +804,25 @@ bot.on("callback_query", (msg) => {
                 if (err) {reject(err);}
                 console.log(rows);
                 bot.sendMessage(rows.user_id, `Ваш заказ на пополнение #${rows.id} на сумму ${rows.amount} USDT был отклонен`);
+            });
+        });
+    } else if (data.slice(0, 8) == 'w_accept') {
+        const order_id = parseInt(data.slice(9));
+        db.serialize(() => {
+            db.get('SELECT * FROM withdraw WHERE id = ?', [order_id], (err, rows) => {
+                if (err) {reject(err);}
+                console.log(rows);
+                add_money(rows.user_id, rows.amount * -1);
+                bot.sendMessage(rows.user_id, `✅ Ваш заказ на вывод #${rows.id} на сумму ${rows.amount} USDT был подтвержден ✅`);
+            });
+        });
+    } else if (data.slice(0, 8) == 'w_reject') {
+        const order_id = parseInt(data.slice(9));
+        db.serialize(() => {
+            db.get('SELECT * FROM withdraw WHERE id = ?', [order_id], (err, rows) => {
+                if (err) {reject(err);}
+                console.log(rows);
+                bot.sendMessage(rows.user_id, `Ваш заказ на вывод #${rows.id} на сумму ${rows.amount} USDT был отклонен`);
             });
         });
     } else {
