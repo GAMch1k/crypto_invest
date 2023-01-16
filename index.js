@@ -1,6 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./databases/database.db');
+const ExcelJS = require('exceljs');
 
 
 db.serialize(() => {
@@ -11,7 +12,7 @@ db.serialize(() => {
 });
 
 
-const token = '5620225286:AAEhkeoOKhg2O7zw6_S6YLN-mntPjKOhqDI';
+const token = '5620225286:AAEhkeoOKhg2O7zw6_S6YLN-mntPjKOhqDI'; // 5620225286:AAEhkeoOKhg2O7zw6_S6YLN-mntPjKOhqDI
 const bot = new TelegramBot(token, {polling: true});
 const bot_user_id = 'cryptoinvestfreedombot'
 
@@ -71,6 +72,48 @@ function add_money(user_id, ammount) {
 }
 
 
+function dump_db() {
+    db.serialize(() => {
+        db.all('SELECT * FROM users', (err, rows) => {
+            if (err) {reject(err);}
+            const workbook = new ExcelJS.Workbook();
+            const sheet = workbook.addWorksheet('users');
+            const worksheet = workbook.getWorksheet('users');
+            worksheet.columns = [
+                { header: 'User Id', key: 'user_id' },
+                { header: 'Balance', key: 'balance' },
+                { header: 'Position', key: 'position' },
+                { header: 'Referal Id', key: 'referal' }
+            ];
+            console.log(rows);
+            rows.forEach(el => {
+                worksheet.addRow(el);
+            });
+            db.serialize(() => {
+                db.all('SELECT * FROM contracts', (err, rows) => {
+                    if (err) {reject(err);}
+                    const sheet = workbook.addWorksheet('contracts');
+                    const worksheet = workbook.getWorksheet('contracts');
+                    worksheet.columns = [
+                        { header: 'Contract Id', key: 'id' },
+                        { header: 'User Id', key: 'user_id' },
+                        { header: 'Amount', key: 'amount' },
+                        { header: 'Days', key: 'days' },
+                        { header: 'Left', key: 'length' },
+                        { header: 'Profit', key: 'profit' }
+                    ];
+                    console.log(rows);
+                    rows.forEach(el => {
+                        worksheet.addRow(el);
+                    });
+                    
+                    workbook.xlsx.writeFile('dump.xlsx');
+                    setTimeout(() => bot.sendDocument(admin_id, './dump.xlsx'), 300);
+                });
+            });
+        });
+    });
+}
 
 
 function set_stage(chatId, stage_name) {
@@ -363,6 +406,8 @@ Bitcoin`
 
 already_have_contract = `У вас уже есть действующий контракт, дождитесь его окончания, после чего вы сможете ОФОРМИТЬ СЛЕДУЮЩИЙ КОНТРАКТ НА ДРУГОЙ СРОК И СУММУ.`
 
+already_have_contract_withdraw = `У вас уже есть действующий контракт, дождитесь его окончания, после чего вы сможете вывести свои средства`
+
 send_check_text = `‼️ Важно ‼️
 После того как вы отправили средства пришлите чек о переводе боту`
 
@@ -436,6 +481,8 @@ bot.on('message', (msg) => {
             bot.sendMessage(chatId, 'Поздравляем! Вы подписались на cryptoinvestbot.');
             bot.sendMessage(chatId, conditions_text, accept_keyboard);
             return;
+        } else if (text == '/dump' && chatId == admin_id) {
+            dump_db();
         }
     
         get_user(chatId).then(results => {
@@ -677,8 +724,20 @@ bot.on('message', (msg) => {
                 } else if(results.position == 'waiting_screenshot') {
                     bot.sendMessage(chatId, 'Отправьте скриншот чека', empty_keyboard);
                 } else if (text == 'Вывод Средств') {
-                    set_stage(chatId, "withdraw_amount");
-                    bot.sendMessage(chatId, `Какую сумму вы желаете вывести на свой Кошелек ?`, amount_keyboard);
+                    db.serialize(() => {
+                        db.all('SELECT * FROM contracts WHERE user_id = ? AND length >= 0', [chatId], (err, rows) => {
+                            if (err) {reject(err);}
+                            console.log(rows);
+                            if (!rows[0]) {
+                                set_stage(chatId, "withdraw_amount");
+                                bot.sendMessage(chatId, `Какую сумму вы желаете вывести на свой Кошелек ?`, amount_keyboard);
+                            } else {
+                                set_stage(chatId, "main_menu");
+                                bot.sendMessage(chatId, already_have_contract_withdraw, main_menu_keyboard);
+                            }
+                        });
+                    });
+                    
                 } else if (results.position == 'withdraw') {
                     // if (nets_keyboard.reply_markup.keyboard.includes(text)) {
                     //     orders[username] = {'net': text};

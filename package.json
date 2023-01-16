@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/GAMch1k/crypto_invest#readme",
   "dependencies": {
+    "exceljs": "^4.3.0",
     "node-telegram-bot-api": "^0.61.0",
     "nodemon": "^2.0.20",
     "sqlite3": "^5.1.4"
